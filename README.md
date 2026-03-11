@@ -1,2 +1,0 @@
-# Grafic
-Setevoi
