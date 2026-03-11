@@ -1,15 +1,14 @@
 import os
 import sqlite3
 import pandas as pd
-
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
-    Updater,
+    ApplicationBuilder,
     CommandHandler,
     MessageHandler,
     ConversationHandler,
-    CallbackContext,
-    Filters
+    ContextTypes,
+    filters
 )
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -45,11 +44,11 @@ tech_list = [
 ]
 
 
-def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [["🚀 Начать заполнение"]]
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "👋 Сетевой график ТКРС\n\nНажмите кнопку чтобы начать",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
@@ -57,13 +56,13 @@ def start(update: Update, context: CallbackContext):
     return DATE
 
 
-def get_date(update: Update, context: CallbackContext):
+async def get_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["date"] = update.message.text
 
     keyboard = [["I смена", "II смена"], ["Обе смены"]]
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "🔄 Выберите смену",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
@@ -71,11 +70,11 @@ def get_date(update: Update, context: CallbackContext):
     return SHIFT
 
 
-def shift(update: Update, context: CallbackContext):
+async def shift(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["shift"] = update.message.text
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "📝 Введите название операции",
         reply_markup=ReplyKeyboardRemove()
     )
@@ -83,35 +82,35 @@ def shift(update: Update, context: CallbackContext):
     return NAME
 
 
-def name(update: Update, context: CallbackContext):
+async def name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["name"] = update.message.text
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "⏰ Введите время начала (пример 11:00)"
     )
 
     return START
 
 
-def start_time(update: Update, context: CallbackContext):
+async def start_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["start"] = update.message.text
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "⏰ Введите время окончания (пример 18:00)"
     )
 
     return END
 
 
-def end_time(update: Update, context: CallbackContext):
+async def end_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["end"] = update.message.text
 
     keyboard = [tech_list[i:i+2] for i in range(0, len(tech_list), 2)]
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "🔧 Выберите технику",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
@@ -119,30 +118,30 @@ def end_time(update: Update, context: CallbackContext):
     return TECH
 
 
-def tech(update: Update, context: CallbackContext):
+async def tech(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["tech"] = update.message.text
 
-    update.message.reply_text(
-        "👤 Представитель заказчика (или напишите 'нет')",
+    await update.message.reply_text(
+        "👤 Представитель заказчика (или 'нет')",
         reply_markup=ReplyKeyboardRemove()
     )
 
     return REP
 
 
-def rep(update: Update, context: CallbackContext):
+async def rep(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["rep"] = update.message.text
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "📦 Оборудование и материалы (или 'нет')"
     )
 
     return EQUIP
 
 
-def equip(update: Update, context: CallbackContext):
+async def equip(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["equip"] = update.message.text
 
@@ -166,7 +165,7 @@ def equip(update: Update, context: CallbackContext):
 
     keyboard = [["➕ Добавить ещё операцию"], ["✅ Завершить отчет"]]
 
-    update.message.reply_text(
+    await update.message.reply_text(
         "✅ Операция добавлена\n\nЧто дальше?",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
@@ -174,13 +173,13 @@ def equip(update: Update, context: CallbackContext):
     return ACTION
 
 
-def action(update: Update, context: CallbackContext):
+async def action(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
     if text == "➕ Добавить ещё операцию":
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "📝 Введите название операции",
             reply_markup=ReplyKeyboardRemove()
         )
@@ -189,7 +188,7 @@ def action(update: Update, context: CallbackContext):
 
     else:
 
-        update.message.reply_text(
+        await update.message.reply_text(
             "✅ Отчет завершен\nСпасибо за работу 👋",
             reply_markup=ReplyKeyboardRemove()
         )
@@ -197,7 +196,7 @@ def action(update: Update, context: CallbackContext):
         return ConversationHandler.END
 
 
-def excel(update: Update, context: CallbackContext):
+async def excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     df = pd.read_sql_query("SELECT * FROM operations", conn)
 
@@ -205,14 +204,12 @@ def excel(update: Update, context: CallbackContext):
 
     df.to_excel(file, index=False)
 
-    update.message.reply_document(open(file, "rb"))
+    await update.message.reply_document(open(file, "rb"))
 
 
 def main():
 
-    updater = Updater(TOKEN)
-
-    dp = updater.dispatcher
+    app = ApplicationBuilder().token(TOKEN).build()
 
     conv = ConversationHandler(
 
@@ -220,29 +217,27 @@ def main():
 
         states={
 
-            DATE: [MessageHandler(Filters.text, get_date)],
-            SHIFT: [MessageHandler(Filters.text, shift)],
-            NAME: [MessageHandler(Filters.text, name)],
-            START: [MessageHandler(Filters.text, start_time)],
-            END: [MessageHandler(Filters.text, end_time)],
-            TECH: [MessageHandler(Filters.text, tech)],
-            REP: [MessageHandler(Filters.text, rep)],
-            EQUIP: [MessageHandler(Filters.text, equip)],
-            ACTION: [MessageHandler(Filters.text, action)]
+            DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_date)],
+            SHIFT: [MessageHandler(filters.TEXT & ~filters.COMMAND, shift)],
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, name)],
+            START: [MessageHandler(filters.TEXT & ~filters.COMMAND, start_time)],
+            END: [MessageHandler(filters.TEXT & ~filters.COMMAND, end_time)],
+            TECH: [MessageHandler(filters.TEXT & ~filters.COMMAND, tech)],
+            REP: [MessageHandler(filters.TEXT & ~filters.COMMAND, rep)],
+            EQUIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, equip)],
+            ACTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, action)]
 
         },
 
         fallbacks=[]
-
     )
 
-    dp.add_handler(conv)
+    app.add_handler(conv)
+    app.add_handler(CommandHandler("excel", excel))
 
-    dp.add_handler(CommandHandler("excel", excel))
+    print("Бот запущен...")
 
-    updater.start_polling()
-
-    updater.idle()
+    app.run_polling()
 
 
 if __name__ == "__main__":
